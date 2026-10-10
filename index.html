@@ -38,7 +38,6 @@
     .info-card { margin-top: 1rem; padding: 0.9rem 1rem; background: #14182a; border-left: 4px solid #7c6df0; border-radius: 8px; font-size: 0.85rem; line-height: 1.7; display: none; }
     .info-card b { color: #7c6df0; }
 
-    /* Output card baru */
     .output-card { margin-top: 1rem; padding: 1rem; background: #0f0f16; border-radius: 10px; border: 1px solid #2a2a3a; display: none; }
     .output-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; padding: 0.7rem 0; border-bottom: 1px solid #1c1c28; }
     .output-row:last-child { border-bottom: none; }
@@ -51,15 +50,25 @@
     .test-result.ok { border-color: #2ecc71; background: #0f2018; }
     .test-result.fail { border-color: #e74c3c; background: #200f0f; }
     .test-result.warn { border-color: #f39c12; background: #221a0f; }
-    .test-result .status-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
-    .badge { padding: 0.25rem 0.7rem; border-radius: 999px; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.05em; }
+
+    .test-header { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 0.8rem; }
+    .badge { padding: 0.28rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.04em; white-space: nowrap; }
     .badge.ok { background: #2ecc71; color: #000; }
     .badge.fail { background: #e74c3c; color: #fff; }
     .badge.warn { background: #f39c12; color: #000; }
-    .test-result .latency { color: #888; font-size: 0.85rem; }
+    .badge.pct-100 { background: #2ecc71; color: #000; }
+    .badge.pct-85  { background: #7c6df0; color: #fff; }
+    .badge.pct-70  { background: #f39c12; color: #000; }
+    .badge.pct-45  { background: #e67e22; color: #fff; }
+    .badge.pct-30  { background: #e74c3c; color: #fff; }
+    .badge.pct-0   { background: #444; color: #aaa; }
+
+    .test-result .latency { color: #888; font-size: 0.82rem; margin-left: auto; }
     .test-result .detail { font-size: 0.85rem; line-height: 1.7; color: #ccc; }
     .test-result .detail b { color: #7c6df0; }
     .test-result .exit-ip { font-family: 'Courier New', monospace; color: #2ecc71; font-weight: 700; }
+    .test-result .pct-label { font-size: 0.75rem; color: #888; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .test-result .fallback-note { margin-top: 0.8rem; padding: 0.7rem; background: #221a0f; border-left: 3px solid #f39c12; border-radius: 6px; font-size: 0.82rem; color: #ddd; }
 
     .note { background: #2a2410; border-left: 4px solid #f1c40f; padding: 0.8rem; margin-top: 1.5rem; border-radius: 6px; font-size: 0.82rem; color: #ddd; line-height: 1.5; }
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2ecc71; color: #000; padding: 0.7rem 1.2rem; border-radius: 8px; font-weight: 700; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
@@ -151,6 +160,49 @@
       };
     }
 
+    // Label kelengkapan berdasarkan persentase
+    function pctLabel(pct) {
+      if (pct >= 100) return 'LENGKAP';
+      if (pct >= 85)  return 'HAMPIR LENGKAP';
+      if (pct >= 70)  return 'SPESIFIK';
+      if (pct >= 45)  return 'SEDANG';
+      if (pct >= 30)  return 'DASAR (COUNTRY ONLY)';
+      return 'TIDAK DIKETAHUI';
+    }
+
+    function pctClass(pct) {
+      if (pct >= 100) return 'pct-100';
+      if (pct >= 85)  return 'pct-85';
+      if (pct >= 70)  return 'pct-70';
+      if (pct >= 45)  return 'pct-45';
+      if (pct >= 30)  return 'pct-30';
+      return 'pct-0';
+    }
+
+    function pctColor(pct) {
+      if (pct >= 100) return '#2ecc71';
+      if (pct >= 85)  return '#7c6df0';
+      if (pct >= 70)  return '#f39c12';
+      if (pct >= 45)  return '#e67e22';
+      return '#e74c3c';
+    }
+
+    // Hitung pct dari string username targeting
+    function pctFromUsername(username) {
+      if (!username) return 0;
+      const parts = username.split('__')[1] || '';
+      const has = {
+        country: /(^|;)cr\./.test(parts),
+        state:   /(^|;)state\./.test(parts),
+        city:    /(^|;)city\./.test(parts),
+        zip:     /(^|;)zip\./.test(parts),
+        asn:     /(^|;)asn\./.test(parts),
+      };
+      let pct = has.country ? WEIGHTS.country : 0;
+      pct += (has.state ? WEIGHTS.state : 0) + (has.city ? WEIGHTS.city : 0) + (has.zip ? WEIGHTS.zip : 0) + (has.asn ? WEIGHTS.asn : 0);
+      return pct;
+    }
+
     async function go() {
       const ip = document.getElementById('ip').value.trim();
       if (!ip) return alert('Isi alamat IP dulu');
@@ -232,14 +284,8 @@
         const pf = document.getElementById('pctFill');
         pv.textContent = pct + '%';
         pf.style.width = pct + '%';
-
-        let color = '#e74c3c';
-        if (pct >= 100) color = '#2ecc71';
-        else if (pct >= 85) color = '#7c6df0';
-        else if (pct >= 70) color = '#f39c12';
-        else if (pct >= 45) color = '#e67e22';
-        pf.style.background = color;
-        pv.style.color = color;
+        pf.style.background = pctColor(pct);
+        pv.style.color = pctColor(pct);
 
         document.getElementById('pctDetail').innerHTML = chips.map(c =>
           `<span class="chip ${c.on ? 'active' : ''}">${c.on ? '✓' : '○'} ${c.label}</span>`
@@ -248,9 +294,15 @@
         const targetParams = params.join(';');
         const username = `${creds.login}__${targetParams}`;
 
-        lastProxy = { host: creds.host, port: creds.port, username, password: creds.password, countryOnly: `${creds.login}__cr.${country}` };
+        lastProxy = {
+          host: creds.host,
+          port: creds.port,
+          username,
+          password: creds.password,
+          countryOnly: `${creds.login}__cr.${country}`,
+          pct,
+        };
 
-        // Render output card (tanpa proxy URL, tanpa curl)
         outputCard.style.display = 'block';
         outputCard.innerHTML = `
           <div class="output-row">
@@ -271,7 +323,7 @@
           </div>
           <div class="output-row">
             <div class="output-label">Targeting</div>
-            <div class="output-value" style="color:#7c6df0;">${targetParams}</div>
+            <div class="output-value" style="color:${pctColor(pct)};">${targetParams} <span style="color:#888;">(${pct}% — ${pctLabel(pct)})</span></div>
           </div>
           <div class="output-row">
             <div class="output-label">Username Lengkap</div>
@@ -303,17 +355,16 @@
 
       try {
         const r1 = await callTestApi(proxy.username, proxy.password, proxy.host, proxy.port);
-        renderTest(r1, testResult, 'Targeting lengkap');
+        renderTest(r1, testResult, proxy.pct, false);
 
         if (!r1.ok && /407/.test(r1.error || '')) {
-          testResult.innerHTML += `<div style="margin-top:0.8rem;padding:0.7rem;background:#221a0f;border-left:3px solid #f39c12;border-radius:6px;font-size:0.82rem;color:#ddd;">
-            ⏳ Error 407 terdeteksi. Mencoba ulang pakai <b>cr.id saja</b> (country only)...
-          </div>`;
+          const note = `<div class="fallback-note">⏳ Error 407. Mencoba ulang pakai <b>cr.id saja</b> (30% — DASAR)...</div>`;
+          testResult.innerHTML += note;
           const r2 = await callTestApi(proxy.countryOnly, proxy.password, proxy.host, proxy.port);
-          renderTest(r2, testResult, 'Country only (fallback)', true);
+          renderTest(r2, testResult, 30, true);
         }
       } catch (e) {
-        renderTest({ ok: false, error: e.message }, testResult, '');
+        renderTest({ ok: false, error: e.message }, testResult, proxy.pct, false);
       } finally {
         btn.disabled = false;
         btn.textContent = '⚡ Test Proxy Sekarang';
@@ -329,43 +380,41 @@
       return await r.json();
     }
 
-    function renderTest(data, target, label, append = false) {
+    function renderTest(data, target, pct, append) {
       target.style.display = 'block';
-      const cls = data.ok ? 'ok' : (/407/.test(data.error || '') ? 'warn' : 'fail');
-      if (!append) { target.classList.remove('ok', 'fail', 'warn'); target.classList.add(cls); }
+
+      // Ambil pct dari username kalau tidak diberikan
+      if (pct === undefined || pct === null) {
+        pct = pctFromUsername(data.username || '');
+      }
+
+      const overallClass = data.ok ? 'ok' : (/407/.test(data.error || '') ? 'warn' : 'fail');
+      if (!append) {
+        target.classList.remove('ok', 'fail', 'warn');
+        target.classList.add(overallClass);
+      }
 
       let html = '';
-      if (label) html += `<div style="font-size:0.75rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">${label}</div>`;
+      html += `<div class="test-header">`;
+      html += `<span class="badge ${data.ok ? 'ok' : (/407/.test(data.error || '') ? 'warn' : 'fail')}">${data.ok ? '✓ HIDUP' : (/407/.test(data.error || '') ? '⚠ 407' : '✗ GAGAL')}</span>`;
+      html += `<span class="badge ${pctClass(pct)}">${pct}% — ${pctLabel(pct)}</span>`;
+      if (data.latency) html += `<span class="latency">${data.latency} ms</span>`;
+      html += `</div>`;
 
       if (data.ok) {
-        html += `
-          <div class="status-row">
-            <span class="badge ok">✓ HIDUP</span>
-            <span class="latency">${data.latency} ms</span>
-          </div>
-          <div class="detail">
-            <b>Exit IP:</b> <span class="exit-ip">${data.exitIp || '-'}</span><br>
-            <b>Target:</b> api.ipify.org
-          </div>`;
+        html += `<div class="detail">
+          <b>Exit IP:</b> <span class="exit-ip">${data.exitIp || '-'}</span><br>
+          <b>Target:</b> api.ipify.org
+        </div>`;
       } else if (/407/.test(data.error || '')) {
-        html += `
-          <div class="status-row">
-            <span class="badge warn">⚠ 407 AUTH</span>
-            <span class="latency">${data.latency ? data.latency + ' ms' : ''}</span>
-          </div>
-          <div class="detail">
-            <b>Error:</b> ${data.error}<br>
-            <span style="color:#888;font-size:0.8rem;">Kemungkinan: kredensial salah, atau targeting tidak tersedia saat ini.</span>
-          </div>`;
+        html += `<div class="detail">
+          <b>Error:</b> ${data.error}<br>
+          <span style="color:#888;font-size:0.8rem;">Kredensial salah, atau targeting ${pct}% tidak tersedia saat ini.</span>
+        </div>`;
       } else {
-        html += `
-          <div class="status-row">
-            <span class="badge fail">✗ GAGAL</span>
-            <span class="latency">${data.latency ? data.latency + ' ms' : ''}</span>
-          </div>
-          <div class="detail">
-            <b>Error:</b> ${data.error || 'Unknown error'}
-          </div>`;
+        html += `<div class="detail">
+          <b>Error:</b> ${data.error || 'Unknown error'}
+        </div>`;
       }
 
       if (append) target.innerHTML += `<hr style="border:none;border-top:1px dashed #333;margin:0.8rem 0;" />` + html;
@@ -388,9 +437,11 @@
 
       try {
         const r = await callTestApi(username, creds.password, creds.host, creds.port);
-        renderTest(r, target, 'Manual test: ' + username);
+        const pct = pctFromUsername(username);
+        target.className = 'test-result ' + (r.ok ? 'ok' : (/407/.test(r.error || '') ? 'warn' : 'fail'));
+        renderTest(r, target, pct, false);
       } catch (e) {
-        renderTest({ ok: false, error: e.message }, target, '');
+        renderTest({ ok: false, error: e.message }, target, 0, false);
       }
     }
 
