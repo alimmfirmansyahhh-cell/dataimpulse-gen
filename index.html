@@ -3,242 +3,187 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DataImpulse Proxy Generator</title>
+  <title>IP → DataImpulse Proxy Generator</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; background: #0b0b10; color: #eaeaea; }
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; background: #0b0b10; color: #eaeaea; }
     h1 { color: #7c6df0; margin-bottom: 0.25rem; }
     p.sub { color: #888; margin-top: 0; font-size: 0.9rem; }
     label { display: block; margin-top: 1rem; font-weight: 600; font-size: 0.88rem; }
-    input { width: 100%; padding: 0.65rem; margin-top: 0.3rem; border: 1px solid #333; border-radius: 8px; background: #1a1a24; color: #eaeaea; font-size: 0.95rem; }
+    input { width: 100%; padding: 0.7rem; margin-top: 0.3rem; border: 1px solid #333; border-radius: 8px; background: #1a1a24; color: #eaeaea; font-size: 1rem; font-family: inherit; }
     input:focus { outline: none; border-color: #7c6df0; }
     .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
     .row > div { flex: 1 1 160px; }
     button { margin-top: 1.2rem; width: 100%; background: #7c6df0; color: white; border: none; padding: 0.9rem; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     button:hover { background: #6a5ae0; }
+    button:disabled { background: #444; cursor: not-allowed; }
     button.alt { background: #2ecc71; margin-top: 0.6rem; }
     button.alt:hover { background: #27ae60; }
 
-    /* Percentage widget */
     .pct-box { margin-top: 1.5rem; padding: 1rem; background: #1a1a24; border-radius: 10px; border: 1px solid #333; }
     .pct-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; color: #aaa; }
     .pct-value { font-size: 1.8rem; font-weight: 800; line-height: 1; }
     .pct-bar { margin-top: 0.7rem; height: 10px; background: #0a0a0f; border-radius: 999px; overflow: hidden; }
     .pct-fill { height: 100%; width: 0%; transition: width 0.35s ease, background 0.35s ease; border-radius: 999px; }
-    .pct-note { margin-top: 0.6rem; font-size: 0.8rem; color: #888; }
-    .pct-detail { margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .pct-detail { margin-top: 0.6rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .chip { font-size: 0.72rem; padding: 0.2rem 0.55rem; border-radius: 999px; background: #0f0f16; color: #666; border: 1px solid #222; }
     .chip.active { background: #7c6df0; color: #fff; border-color: #7c6df0; }
 
-    /* Output */
-    pre { background: #0a0a0f; padding: 1rem; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-size: 0.82rem; margin-top: 1rem; border: 1px solid #222; }
+    .info-card { margin-top: 1rem; padding: 0.9rem 1rem; background: #14182a; border-left: 4px solid #7c6df0; border-radius: 8px; font-size: 0.85rem; line-height: 1.7; display: none; }
+    .info-card b { color: #7c6df0; }
+    pre { background: #0a0a0f; padding: 1rem; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-size: 0.82rem; margin-top: 1rem; border: 1px solid #222; display: none; }
     .note { background: #2a2410; border-left: 4px solid #f1c40f; padding: 0.8rem; margin-top: 1.5rem; border-radius: 6px; font-size: 0.82rem; color: #ddd; line-height: 1.5; }
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2ecc71; color: #000; padding: 0.7rem 1.2rem; border-radius: 8px; font-weight: 700; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
     .toast.show { opacity: 1; }
-    #output { display: none; }
+    .loading { color: #888; font-size: 0.85rem; margin-top: 1rem; display: none; }
   </style>
 </head>
 <body>
-  <h1>DataImpulse Proxy Generator</h1>
-  <p class="sub">Isi kredensial & targeting, lihat persentase presisi secara live.</p>
+  <h1>IP → DataImpulse Proxy Generator</h1>
+  <p class="sub">Masukkan alamat IP, tool otomatis mendeteksi lokasi & ASN-nya, lalu generate string proxy DataImpulse.</p>
 
-  <div class="row">
-    <div>
-      <label>Login</label>
-      <input id="login" value="a498b10b356f68e9a7f8" />
-    </div>
-    <div>
-      <label>Password</label>
-      <input id="password" value="dfle9dd4e3fdf8ae" />
-    </div>
-  </div>
+  <label>Alamat IP</label>
+  <input id="ip" placeholder="contoh: 8.8.8.8 atau 103.150.60.10" autocomplete="off" />
+  <button id="btnGo" onclick="go()">Deteksi & Generate</button>
+  <div class="loading" id="loading">⏳ Mendeteksi IP...</div>
 
-  <div class="row">
-    <div>
-      <label>Host</label>
-      <input id="host" value="gw.dataimpulse.com" />
-    </div>
-    <div>
-      <label>Port</label>
-      <input id="port" value="823" />
-    </div>
-  </div>
+  <div class="info-card" id="infoCard"></div>
 
-  <div class="row">
-    <div>
-      <label>Country (cr.)</label>
-      <input id="country" value="id" oninput="updatePct()" />
-    </div>
-    <div>
-      <label>State (state.)</label>
-      <input id="state" value="eastjava" oninput="updatePct()" placeholder="eastjava" />
-    </div>
-  </div>
-
-  <div class="row">
-    <div>
-      <label>City (city.)</label>
-      <input id="city" value="wonodadi" oninput="updatePct()" placeholder="wonodadi" />
-    </div>
-    <div>
-      <label>Zip Code (zip.)</label>
-      <input id="zip" value="" oninput="updatePct()" placeholder="misal: 66155" />
-    </div>
-  </div>
-
-  <div class="row">
-    <div>
-      <label>ASN (asn.)</label>
-      <input id="asn" value="140390" oninput="updatePct()" placeholder="140390" />
-    </div>
-  </div>
-
-  <!-- Percentage widget -->
-  <div class="pct-box">
+  <div class="pct-box" id="pctBox" style="display:none;">
     <div class="pct-header">
       <span>Presisi Targeting</span>
       <span class="pct-value" id="pctValue">0%</span>
     </div>
     <div class="pct-bar"><div class="pct-fill" id="pctFill"></div></div>
     <div class="pct-detail" id="pctDetail"></div>
-    <div class="pct-note" id="pctNote"></div>
   </div>
 
-  <button onclick="generate()">Generate Proxy String</button>
-
-  <div id="output">
-    <pre id="result"></pre>
-    <button class="alt" onclick="copyResult()">Copy Hasil</button>
-  </div>
+  <pre id="result"></pre>
+  <button class="alt" id="btnCopy" style="display:none;" onclick="copyResult()">Copy Hasil</button>
 
   <div class="note">
-    <strong>Catatan:</strong> Filter <code>state</code>, <code>city</code>, <code>zip</code>, dan <code>asn</code> dikenakan biaya 2x lipat per GB. Persentase di atas menunjukkan <b>tingkat presisi targeting</b>, bukan jaminan ketersediaan IP. Jika kombinasi tidak tersedia, akan muncul error <code>400 NO_RAY</code>.
+    <strong>Catatan:</strong> IP yang dihasilkan DataImpulse <b>tidak akan persis sama</b> dengan IP yang Anda masukkan — tool ini hanya mendeteksi lokasi & ASN-nya untuk dijadikan parameter targeting. Filter <code>state</code>, <code>city</code>, <code>zip</code>, <code>asn</code> dikenakan biaya 2x lipat per GB.
   </div>
 
   <div class="toast" id="toast">Disalin!</div>
 
   <script>
-    // Bobot tiap field. Country = 30% (wajib untuk mulai).
-    const WEIGHTS = {
-      country: 30,
-      state:   15,
-      city:    25,
-      zip:     15,
-      asn:     15,
+    const CREDS = {
+      login:    'a498b10b356f68e9a7f8',
+      password: 'dfle9dd4e3fdf8ae',
+      host:     'gw.dataimpulse.com',
+      port:     '823',
     };
 
-    function updatePct() {
-      const fields = {
-        country: document.getElementById('country').value.trim(),
-        state:   document.getElementById('state').value.trim(),
-        city:    document.getElementById('city').value.trim(),
-        zip:     document.getElementById('zip').value.trim(),
-        asn:     document.getElementById('asn').value.trim(),
-      };
+    const WEIGHTS = { country: 30, state: 15, city: 25, zip: 15, asn: 15 };
 
-      let pct = 0;
-      const chips = [];
-
-      // Country wajib untuk mendapat nilai
-      if (fields.country) {
-        pct += WEIGHTS.country;
-        chips.push({ label: 'Country', on: true });
-
-        // Field lainnya hanya dihitung jika country terisi
-        for (const key of ['state', 'city', 'zip', 'asn']) {
-          if (fields[key]) {
-            pct += WEIGHTS[key];
-            chips.push({ label: capitalize(key), on: true });
-          } else {
-            chips.push({ label: capitalize(key), on: false });
-          }
-        }
-      } else {
-        chips.push({ label: 'Country', on: false });
-        for (const key of ['state', 'city', 'zip', 'asn']) {
-          chips.push({ label: capitalize(key), on: false });
-        }
-      }
-
-      pct = Math.min(pct, 100);
-
-      // Update UI
-      const pctValue = document.getElementById('pctValue');
-      const pctFill = document.getElementById('pctFill');
-      const pctDetail = document.getElementById('pctDetail');
-      const pctNote = document.getElementById('pctNote');
-
-      pctValue.textContent = pct + '%';
-      pctFill.style.width = pct + '%';
-
-      // Warna bar
-      let color = '#e74c3c';
-      if (pct >= 100) color = '#2ecc71';
-      else if (pct >= 85) color = '#7c6df0';
-      else if (pct >= 70) color = '#f39c12';
-      else if (pct >= 45) color = '#e67e22';
-      pctFill.style.background = color;
-      pctValue.style.color = color;
-
-      // Chips
-      pctDetail.innerHTML = chips.map(c =>
-        `<span class="chip ${c.on ? 'active' : ''}">${c.on ? '✓' : '○'} ${c.label}</span>`
-      ).join('');
-
-      // Note
-      if (!fields.country) {
-        pctNote.textContent = 'Isi minimal Country untuk mulai menargetkan.';
-      } else if (pct === 100) {
-        pctNote.textContent = '🔥 Targeting paling lengkap — presisi maksimal.';
-      } else if (pct >= 70) {
-        pctNote.textContent = 'Presisi tinggi. Tambah field lain untuk lebih spesifik.';
-      } else if (pct >= 45) {
-        pctNote.textContent = 'Presisi sedang. Semakin banyak field, semakin sempit rentang IP.';
-      } else {
-        pctNote.textContent = 'Presisi rendah — semua IP di negara tersebut berpotensi dipakai.';
-      }
+    // Normalisasi: lowercase, hilangkan spasi & tanda baca
+    function norm(s) {
+      if (!s) return '';
+      return String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
     }
 
-    function capitalize(s) {
-      return s.charAt(0).toUpperCase() + s.slice(1);
-    }
+    async function go() {
+      const ip = document.getElementById('ip').value.trim();
+      if (!ip) return alert('Isi alamat IP dulu');
 
-    function generate() {
-      const login    = document.getElementById('login').value.trim();
-      const password = document.getElementById('password').value.trim();
-      const host     = document.getElementById('host').value.trim();
-      const port     = document.getElementById('port').value.trim();
-      const country  = document.getElementById('country').value.trim();
-      const state    = document.getElementById('state').value.trim();
-      const city     = document.getElementById('city').value.trim();
-      const zip      = document.getElementById('zip').value.trim();
-      const asn      = document.getElementById('asn').value.trim();
+      const btn = document.getElementById('btnGo');
+      const loading = document.getElementById('loading');
+      const infoCard = document.getElementById('infoCard');
+      const pctBox = document.getElementById('pctBox');
+      const result = document.getElementById('result');
 
-      if (!login || !password || !host || !port) {
-        alert('Login, password, host, dan port wajib diisi.');
-        return;
-      }
-      if (!country) {
-        alert('Isi minimal Country (cr.) dulu.');
-        return;
-      }
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+      loading.style.display = 'block';
+      infoCard.style.display = 'none';
+      pctBox.style.display = 'none';
+      result.style.display = 'none';
+      document.getElementById('btnCopy').style.display = 'none';
 
-      const params = [`cr.${country}`];
-      if (state) params.push(`state.${state}`);
-      if (city)  params.push(`city.${city}`);
-      if (zip)   params.push(`zip.${zip}`);
-      if (asn)   params.push(`asn.${asn}`);
+      try {
+        const r = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`);
+        const d = await r.json();
 
-      const username = `${login}__${params.join(';')}`;
-      const proxyUrl = `http://${username}:${password}@${host}:${port}`;
+        if (!d.success) {
+          infoCard.style.display = 'block';
+          infoCard.innerHTML = `❌ Gagal mendeteksi IP: <b>${d.message || 'tidak ditemukan'}</b>`;
+          return;
+        }
 
-      const curlCmd = `curl -x "${proxyUrl}" https://api.ipify.org/`;
-      const pyCode  = `import requests\n\nproxy_url = "${proxyUrl}"\nproxies = {"http": proxy_url, "https": proxy_url}\nr = requests.get("https://api.ipify.org/", proxies=proxies)\nprint(r.text)`;
+        // Ambil data
+        const country = (d.country_code || '').toLowerCase();
+        const state   = norm(d.region);
+        const city    = norm(d.city);
+        const zip     = (d.postal || '').replace(/\s/g, '');
+        const asn     = d.connection?.asn ? String(d.connection.asn) : '';
+        const isp     = d.connection?.isp || d.connection?.org || '-';
 
-      const pct = document.getElementById('pctValue').textContent;
+        // Tampilkan info yang terdeteksi
+        infoCard.style.display = 'block';
+        infoCard.innerHTML =
+          `<b>IP:</b> ${d.ip} (${d.type})<br>` +
+          `<b>Negara:</b> ${d.country} (${country})<br>` +
+          `<b>Provinsi:</b> ${d.region || '-'} → state.${state || '-'}<br>` +
+          `<b>Kota:</b> ${d.city || '-'} → city.${city || '-'}<br>` +
+          `<b>Zip:</b> ${zip || '-'} → zip.${zip || '-'}<br>` +
+          `<b>ASN:</b> ${asn || '-'} → asn.${asn || '-'}<br>` +
+          `<b>ISP:</b> ${isp}`;
 
-      const output =
-`Presisi: ${pct}
+        // Susun parameter
+        const params = [];
+        if (country) params.push(`cr.${country}`);
+        if (state)   params.push(`state.${state}`);
+        if (city)    params.push(`city.${city}`);
+        if (zip)     params.push(`zip.${zip}`);
+        if (asn)     params.push(`asn.${asn}`);
+
+        if (!country) {
+          result.style.display = 'block';
+          result.textContent = '❌ Tidak bisa generate: country code tidak terdeteksi.';
+          return;
+        }
+
+        // Hitung persentase
+        let pct = 0;
+        const chips = [];
+        if (country) pct += WEIGHTS.country;
+        chips.push({ label: 'Country', on: !!country });
+        chips.push({ label: 'State',   on: !!state });
+        chips.push({ label: 'City',    on: !!city });
+        chips.push({ label: 'Zip',     on: !!zip });
+        chips.push({ label: 'ASN',     on: !!asn });
+        pct += (state ? WEIGHTS.state : 0) + (city ? WEIGHTS.city : 0) + (zip ? WEIGHTS.zip : 0) + (asn ? WEIGHTS.asn : 0);
+
+        // Render widget persentase
+        pctBox.style.display = 'block';
+        const pv = document.getElementById('pctValue');
+        const pf = document.getElementById('pctFill');
+        pv.textContent = pct + '%';
+        pf.style.width = pct + '%';
+
+        let color = '#e74c3c';
+        if (pct >= 100) color = '#2ecc71';
+        else if (pct >= 85) color = '#7c6df0';
+        else if (pct >= 70) color = '#f39c12';
+        else if (pct >= 45) color = '#e67e22';
+        pf.style.background = color;
+        pv.style.color = color;
+
+        document.getElementById('pctDetail').innerHTML = chips.map(c =>
+          `<span class="chip ${c.on ? 'active' : ''}">${c.on ? '✓' : '○'} ${c.label}</span>`
+        ).join('');
+
+        // Generate string proxy
+        const username = `${CREDS.login}__${params.join(';')}`;
+        const proxyUrl = `http://${username}:${CREDS.password}@${CREDS.host}:${CREDS.port}`;
+        const curlCmd  = `curl -x "${proxyUrl}" https://api.ipify.org/`;
+        const pyCode   = `import requests\n\nproxy_url = "${proxyUrl}"\nproxies = {"http": proxy_url, "https": proxy_url}\nr = requests.get("https://api.ipify.org/", proxies=proxies)\nprint(r.text)`;
+
+        result.style.display = 'block';
+        result.textContent =
+`━━━ PARAMETER TARGETING ━━━
+${params.join(';')}
 
 ━━━ PROXY URL ━━━
 ${proxyUrl}
@@ -249,8 +194,16 @@ ${curlCmd}
 ━━━ Python ━━━
 ${pyCode}`;
 
-      document.getElementById('result').textContent = output;
-      document.getElementById('output').style.display = 'block';
+        document.getElementById('btnCopy').style.display = 'block';
+
+      } catch (e) {
+        infoCard.style.display = 'block';
+        infoCard.innerHTML = `❌ Error: ${e.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Deteksi & Generate';
+        loading.style.display = 'none';
+      }
     }
 
     function copyResult() {
@@ -261,9 +214,6 @@ ${pyCode}`;
         setTimeout(() => t.classList.remove('show'), 1500);
       }).catch(() => alert('Gagal menyalin'));
     }
-
-    // Inisialisasi
-    updatePct();
   </script>
 </body>
 </html>
