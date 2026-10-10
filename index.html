@@ -19,6 +19,10 @@
     button:disabled { background: #444; cursor: not-allowed; }
     button.alt { background: #2ecc71; margin-top: 0.6rem; }
     button.alt:hover { background: #27ae60; }
+    button.test { background: #f39c12; margin-top: 0.6rem; }
+    button.test:hover { background: #d68910; }
+
+    .section-title { margin-top: 1.8rem; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: #666; border-bottom: 1px solid #222; padding-bottom: 0.4rem; }
 
     .pct-box { margin-top: 1.5rem; padding: 1rem; background: #1a1a24; border-radius: 10px; border: 1px solid #333; }
     .pct-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; color: #aaa; }
@@ -31,7 +35,23 @@
 
     .info-card { margin-top: 1rem; padding: 0.9rem 1rem; background: #14182a; border-left: 4px solid #7c6df0; border-radius: 8px; font-size: 0.85rem; line-height: 1.7; display: none; }
     .info-card b { color: #7c6df0; }
-    pre { background: #0a0a0f; padding: 1rem; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-size: 0.82rem; margin-top: 1rem; border: 1px solid #222; display: none; }
+
+    pre { background: #0a0a0f; padding: 1rem; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-size: 0.82rem; margin-top: 1rem; border: 1px solid #222; display: none; font-family: 'Courier New', monospace; }
+    pre .hl { color: #2ecc71; font-weight: 700; }
+
+    /* Hasil test */
+    .test-result { margin-top: 1rem; padding: 1rem; border-radius: 10px; background: #1a1a24; border: 1px solid #333; display: none; }
+    .test-result.ok { border-color: #2ecc71; background: #0f2018; }
+    .test-result.fail { border-color: #e74c3c; background: #200f0f; }
+    .test-result .status-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+    .badge { padding: 0.25rem 0.7rem; border-radius: 999px; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.05em; }
+    .badge.ok { background: #2ecc71; color: #000; }
+    .badge.fail { background: #e74c3c; color: #fff; }
+    .test-result .latency { color: #888; font-size: 0.85rem; }
+    .test-result .detail { font-size: 0.85rem; line-height: 1.7; color: #ccc; }
+    .test-result .detail b { color: #7c6df0; }
+    .test-result .exit-ip { font-family: 'Courier New', monospace; color: #2ecc71; font-weight: 700; }
+
     .note { background: #2a2410; border-left: 4px solid #f1c40f; padding: 0.8rem; margin-top: 1.5rem; border-radius: 6px; font-size: 0.82rem; color: #ddd; line-height: 1.5; }
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2ecc71; color: #000; padding: 0.7rem 1.2rem; border-radius: 8px; font-weight: 700; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
     .toast.show { opacity: 1; }
@@ -42,8 +62,31 @@
   <h1>IP → DataImpulse Proxy Generator</h1>
   <p class="sub">Masukkan alamat IP, tool otomatis mendeteksi lokasi & ASN-nya, lalu generate string proxy DataImpulse.</p>
 
+  <div class="section-title">🔑 Kredensial DataImpulse</div>
+  <div class="row">
+    <div>
+      <label>Login (Username)</label>
+      <input id="login" value="a498b10b356f68e9a7f8" autocomplete="off" />
+    </div>
+    <div>
+      <label>Password</label>
+      <input id="password" value="dfle9dd4e3fdf8ae" autocomplete="off" />
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>Host</label>
+      <input id="host" value="gw.dataimpulse.com" />
+    </div>
+    <div>
+      <label>Port</label>
+      <input id="port" value="823" />
+    </div>
+  </div>
+
+  <div class="section-title">🌐 Alamat IP Target</div>
   <label>Alamat IP</label>
-  <input id="ip" placeholder="contoh: 8.8.8.8 atau 103.150.60.10" autocomplete="off" />
+  <input id="ip" placeholder="contoh: 103.160.184.130" autocomplete="off" />
   <button id="btnGo" onclick="go()">Deteksi & Generate</button>
   <div class="loading" id="loading">⏳ Mendeteksi IP...</div>
 
@@ -60,6 +103,9 @@
 
   <pre id="result"></pre>
   <button class="alt" id="btnCopy" style="display:none;" onclick="copyResult()">Copy Hasil</button>
+  <button class="test" id="btnTest" style="display:none;" onclick="testProxy()">⚡ Test Proxy Sekarang</button>
+
+  <div class="test-result" id="testResult"></div>
 
   <div class="note">
     <strong>Catatan:</strong> IP yang dihasilkan DataImpulse <b>tidak akan persis sama</b> dengan IP yang Anda masukkan — tool ini hanya mendeteksi lokasi & ASN-nya untuk dijadikan parameter targeting. Filter <code>state</code>, <code>city</code>, <code>zip</code>, <code>asn</code> dikenakan biaya 2x lipat per GB.
@@ -68,16 +114,9 @@
   <div class="toast" id="toast">Disalin!</div>
 
   <script>
-    const CREDS = {
-      login:    'a498b10b356f68e9a7f8',
-      password: 'dfle9dd4e3fdf8ae',
-      host:     'gw.dataimpulse.com',
-      port:     '823',
-    };
-
     const WEIGHTS = { country: 30, state: 15, city: 25, zip: 15, asn: 15 };
+    let lastProxy = null; // simpan hasil generate terakhir untuk test
 
-    // Normalisasi: lowercase, hilangkan spasi & tanda baca
     function norm(s) {
       if (!s) return '';
       return String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -87,11 +126,21 @@
       const ip = document.getElementById('ip').value.trim();
       if (!ip) return alert('Isi alamat IP dulu');
 
+      const login    = document.getElementById('login').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const host     = document.getElementById('host').value.trim();
+      const port     = document.getElementById('port').value.trim();
+
+      if (!login || !password || !host || !port) {
+        return alert('Isi dulu Login, Password, Host, dan Port DataImpulse.');
+      }
+
       const btn = document.getElementById('btnGo');
       const loading = document.getElementById('loading');
       const infoCard = document.getElementById('infoCard');
       const pctBox = document.getElementById('pctBox');
       const result = document.getElementById('result');
+      const testResult = document.getElementById('testResult');
 
       btn.disabled = true;
       btn.textContent = 'Memproses...';
@@ -99,7 +148,9 @@
       infoCard.style.display = 'none';
       pctBox.style.display = 'none';
       result.style.display = 'none';
+      testResult.style.display = 'none';
       document.getElementById('btnCopy').style.display = 'none';
+      document.getElementById('btnTest').style.display = 'none';
 
       try {
         const r = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`);
@@ -111,7 +162,6 @@
           return;
         }
 
-        // Ambil data
         const country = (d.country_code || '').toLowerCase();
         const state   = norm(d.region);
         const city    = norm(d.city);
@@ -119,7 +169,6 @@
         const asn     = d.connection?.asn ? String(d.connection.asn) : '';
         const isp     = d.connection?.isp || d.connection?.org || '-';
 
-        // Tampilkan info yang terdeteksi
         infoCard.style.display = 'block';
         infoCard.innerHTML =
           `<b>IP:</b> ${d.ip} (${d.type})<br>` +
@@ -130,7 +179,6 @@
           `<b>ASN:</b> ${asn || '-'} → asn.${asn || '-'}<br>` +
           `<b>ISP:</b> ${isp}`;
 
-        // Susun parameter
         const params = [];
         if (country) params.push(`cr.${country}`);
         if (state)   params.push(`state.${state}`);
@@ -144,18 +192,16 @@
           return;
         }
 
-        // Hitung persentase
-        let pct = 0;
-        const chips = [];
-        if (country) pct += WEIGHTS.country;
-        chips.push({ label: 'Country', on: !!country });
-        chips.push({ label: 'State',   on: !!state });
-        chips.push({ label: 'City',    on: !!city });
-        chips.push({ label: 'Zip',     on: !!zip });
-        chips.push({ label: 'ASN',     on: !!asn });
+        let pct = country ? WEIGHTS.country : 0;
         pct += (state ? WEIGHTS.state : 0) + (city ? WEIGHTS.city : 0) + (zip ? WEIGHTS.zip : 0) + (asn ? WEIGHTS.asn : 0);
+        const chips = [
+          { label: 'Country', on: !!country },
+          { label: 'State',   on: !!state },
+          { label: 'City',    on: !!city },
+          { label: 'Zip',     on: !!zip },
+          { label: 'ASN',     on: !!asn },
+        ];
 
-        // Render widget persentase
         pctBox.style.display = 'block';
         const pv = document.getElementById('pctValue');
         const pf = document.getElementById('pctFill');
@@ -174,27 +220,40 @@
           `<span class="chip ${c.on ? 'active' : ''}">${c.on ? '✓' : '○'} ${c.label}</span>`
         ).join('');
 
-        // Generate string proxy
-        const username = `${CREDS.login}__${params.join(';')}`;
-        const proxyUrl = `http://${username}:${CREDS.password}@${CREDS.host}:${CREDS.port}`;
+        const targetParams = params.join(';');
+        const username = `${login}__${targetParams}`;
+        const proxyUrl = `http://${username}:${password}@${host}:${port}`;
         const curlCmd  = `curl -x "${proxyUrl}" https://api.ipify.org/`;
         const pyCode   = `import requests\n\nproxy_url = "${proxyUrl}"\nproxies = {"http": proxy_url, "https": proxy_url}\nr = requests.get("https://api.ipify.org/", proxies=proxies)\nprint(r.text)`;
 
-        result.style.display = 'block';
-        result.textContent =
-`━━━ PARAMETER TARGETING ━━━
-${params.join(';')}
+        // Simpan untuk test
+        lastProxy = { host, port, username, password };
 
-━━━ PROXY URL ━━━
+        result.style.display = 'block';
+        result.innerHTML =
+`<span class="hl">━━━ KREDENSIAL ━━━</span>
+Login     : ${login}
+Password  : ${password}
+Host      : ${host}
+Port      : ${port}
+
+<span class="hl">━━━ PARAMETER TARGETING ━━━</span>
+${targetParams}
+
+<span class="hl">━━━ USERNAME LENGKAP ━━━</span>
+${username}
+
+<span class="hl">━━━ PROXY URL ━━━</span>
 ${proxyUrl}
 
-━━━ cURL ━━━
+<span class="hl">━━━ cURL ━━━</span>
 ${curlCmd}
 
-━━━ Python ━━━
+<span class="hl">━━━ Python ━━━</span>
 ${pyCode}`;
 
         document.getElementById('btnCopy').style.display = 'block';
+        document.getElementById('btnTest').style.display = 'block';
 
       } catch (e) {
         infoCard.style.display = 'block';
@@ -206,8 +265,68 @@ ${pyCode}`;
       }
     }
 
+    async function testProxy() {
+      if (!lastProxy) return alert('Generate dulu');
+
+      const btn = document.getElementById('btnTest');
+      const testResult = document.getElementById('testResult');
+      btn.disabled = true;
+      btn.textContent = '⏳ Menguji proxy...';
+      testResult.style.display = 'none';
+
+      try {
+        const r = await fetch('/api/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host: lastProxy.host,
+            port: lastProxy.port,
+            username: lastProxy.username,
+            password: lastProxy.password,
+            target: 'https://api.ipify.org',
+          }),
+        });
+        const data = await r.json();
+        renderTest(data);
+      } catch (e) {
+        renderTest({ ok: false, error: e.message });
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Test Proxy Sekarang';
+      }
+    }
+
+    function renderTest(data) {
+      const tr = document.getElementById('testResult');
+      tr.style.display = 'block';
+      tr.className = 'test-result ' + (data.ok ? 'ok' : 'fail');
+
+      if (data.ok) {
+        tr.innerHTML = `
+          <div class="status-row">
+            <span class="badge ok">✓ HIDUP</span>
+            <span class="latency">${data.latency} ms</span>
+          </div>
+          <div class="detail">
+            <b>Exit IP:</b> <span class="exit-ip">${data.exitIp || '-'}</span><br>
+            <b>Target:</b> api.ipify.org<br>
+            <b>Status:</b> Berhasil terhubung melalui proxy
+          </div>`;
+      } else {
+        tr.innerHTML = `
+          <div class="status-row">
+            <span class="badge fail">✗ GAGAL</span>
+            <span class="latency">${data.latency ? data.latency + ' ms' : ''}</span>
+          </div>
+          <div class="detail">
+            <b>Error:</b> ${data.error || 'Unknown error'}<br>
+            <span style="color:#888;font-size:0.8rem;">Coba cek kredensial, atau targeting mungkin tidak tersedia (NO_RAY).</span>
+          </div>`;
+      }
+    }
+
     function copyResult() {
-      const text = document.getElementById('result').textContent;
+      const text = document.getElementById('result').innerText;
       navigator.clipboard.writeText(text).then(() => {
         const t = document.getElementById('toast');
         t.classList.add('show');
